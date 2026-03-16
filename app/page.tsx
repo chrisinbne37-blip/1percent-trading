@@ -786,11 +786,15 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-4 h-4 rounded-full animate-pulse ${
-                          aiAnalysis.status === '빨간불' ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]' :
-                          aiAnalysis.status === '노란불' ? 'bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.6)]' :
-                          'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]'
+                          aiAnalysis.score >= 80 ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]' :
+                          aiAnalysis.score >= 40 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]' :
+                          'bg-slate-400 shadow-[0_0_10px_rgba(148,163,184,0.6)]'
                         }`} />
-                        <span className="font-bold text-slate-700 text-lg">{aiAnalysis.status}</span>
+                        <span className="font-bold text-slate-700 text-lg">
+                          {aiAnalysis.score >= 80 ? '🔴 빨간불 (과열/추격 금지)' :
+                           aiAnalysis.score >= 40 ? '🟢 초록불 (타점/매수 적기)' :
+                           '⚪ 회색불 (관망/수급 부족)'}
+                        </span>
                       </div>
                       <div className="text-right">
                         <span className="text-3xl font-black text-slate-900">{aiAnalysis.score}</span>
@@ -802,16 +806,16 @@ export default function Dashboard() {
                       <div
                         className={`h-full rounded-full transition-all duration-1000 ${
                           aiAnalysis.score >= 80 ? 'bg-red-500' :
-                          aiAnalysis.score >= 50 ? 'bg-yellow-400' :
-                          'bg-emerald-500'
+                          aiAnalysis.score >= 40 ? 'bg-green-500' :
+                          'bg-slate-400'
                         }`}
                         style={{ width: `${aiAnalysis.score}%` }}
                       />
                     </div>
                     <div className="flex justify-between text-xs mt-2">
-                      <span className="text-emerald-500 font-bold">관망 (0~30)</span>
-                      <span className="text-yellow-500 font-bold">눌림목 (50~70)</span>
-                      <span className="text-red-500 font-bold">추격금지 (80~100)</span>
+                      <span className="text-slate-400 font-bold">관망 (0~39)</span>
+                      <span className="text-green-500 font-bold">타점 (40~79)</span>
+                      <span className="text-red-500 font-bold">과열 (80~100)</span>
                     </div>
                     
                     {/* Strategy Badge */}

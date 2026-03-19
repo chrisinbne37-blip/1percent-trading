@@ -1,8 +1,85 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TrendingUp, Activity, DollarSign, Clock, X, Loader2, Sparkles, AlertCircle, Target, RefreshCw, Search } from 'lucide-react';
+import { TrendingUp, Activity, DollarSign, Clock, X, Loader2, Sparkles, AlertCircle, Target, RefreshCw, Search, BookOpen } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
+
+const trainingData = [
+  // 카테고리 1: 📖 기초/시황 용어
+  { term: '공매도', category: '📖 기초/시황 용어', description: '주가가 하락할 것을 예상하고 주식을 빌려서 판 뒤, 주가가 떨어지면 싼값에 사서 갚아 차익을 얻는 투자 기법.' },
+  { term: '상한가', category: '📖 기초/시황 용어', description: '하루 동안 주가가 오를 수 있는 최고 한도 (한국 기준 +30%).' },
+  { term: '하한가', category: '📖 기초/시황 용어', description: '하루 동안 주가가 내릴 수 있는 최저 한도 (한국 기준 -30%).' },
+  { term: 'VI', category: '📖 기초/시황 용어', description: '주가가 급격하게 변동할 때 2분간 단일가 매매로 전환하여 열기를 식히는 안전 장치.' },
+  { term: '변동성완화장치', category: '📖 기초/시황 용어', description: '주가가 급격하게 변동할 때 2분간 단일가 매매로 전환하여 열기를 식히는 안전 장치 (VI와 동일).' },
+  { term: '시간외 단일가', category: '📖 기초/시황 용어', description: '16시~18시까지 10분 단위로 주문을 모아 체결시키는 정규장 이후의 시장.' },
+  { term: '갭상승', category: '📖 기초/시황 용어', description: '개장 시초가가 전일 종가보다 훌쩍 뛰어서 시작하는 현상. (강한 호재 반영)' },
+  { term: '갭하락', category: '📖 기초/시황 용어', description: '개장 시초가가 전일 종가보다 크게 떨어져서 시작하는 현상. (강한 악재 반영)' },
+  { term: '예수금', category: '📖 기초/시황 용어', description: '주식을 사기 위해 증권 계좌에 넣어둔 현금.' },
+  { term: '미수금', category: '📖 기초/시황 용어', description: '주식을 살 때 돈이 부족해 증권사에서 빌린 돈. 3일 내에 갚지 않으면 반대매매가 나감.' },
+  { term: '반대매매', category: '📖 기초/시황 용어', description: '미수금이나 신용융자를 기한 내 갚지 못했을 때, 증권사가 강제로 주식을 팔아버리는 것.' },
+  
+  // 카테고리 2: 📈 차트/지표 보는 법
+  { term: '양봉', category: '📈 차트/지표 보는 법', description: '종가가 시초가보다 높게 끝난 캔들. (보통 빨간색)' },
+  { term: '음봉', category: '📈 차트/지표 보는 법', description: '종가가 시초가보다 낮게 끝난 캔들. (보통 파란색)' },
+  { term: '윗꼬리', category: '📈 차트/지표 보는 법', description: '장중 고점까지 올랐다가 매도세에 밀려 가격이 내려온 흔적.' },
+  { term: '밑꼬리', category: '📈 차트/지표 보는 법', description: '장중 저점까지 내렸다가 매수세가 들어와 가격이 올라간 흔적.' },
+  { term: '이동평균선', category: '📈 차트/지표 보는 법', description: '일정 기간 동안의 주가 평균을 연결한 선. (이평선)' },
+  { term: '이평선', category: '📈 차트/지표 보는 법', description: '일정 기간 동안의 주가 평균을 연결한 선. (이동평균선)' },
+  { term: '정배열', category: '📈 차트/지표 보는 법', description: '단기 이동평균선이 장기 이동평균선 위에 차례대로 놓인 상태. (강한 상승 추세)' },
+  { term: '역배열', category: '📈 차트/지표 보는 법', description: '단기 이동평균선이 장기 이동평균선 아래에 차례대로 놓인 상태. (강한 하락 추세)' },
+  { term: '골든크로스', category: '📈 차트/지표 보는 법', description: '단기 이동평균선이 장기 이동평균선을 아래에서 위로 뚫고 올라가는 강세 신호.' },
+  { term: '데드크로스', category: '📈 차트/지표 보는 법', description: '단기 이동평균선이 장기 이동평균선을 위에서 아래로 뚫고 내려가는 약세 신호.' },
+  { term: '지지선', category: '📈 차트/지표 보는 법', description: '주가가 하락하다가 더 이상 떨어지지 않고 버티는 가격대.' },
+  { term: '저항선', category: '📈 차트/지표 보는 법', description: '주가가 상승하다가 더 이상 오르지 못하고 부딪히는 가격대.' },
+  { term: '거래량', category: '📈 차트/지표 보는 법', description: '주식이 매매된 수량. 주가의 신뢰도를 판단하는 핵심 지표.' },
+
+  // 카테고리 3: ⚔️ 실전 매매 기법
+  { term: '스캘핑', category: '⚔️ 실전 매매 기법', description: '수 초~수 분 단위로 극히 짧은 시간에 매매를 반복해 얇은 수익을 챙기는 극초단타 기법.' },
+  { term: '눌림목', category: '⚔️ 실전 매매 기법', description: '주가가 상승 추세에서 이익 실현 매물로 인해 일시적으로 하락하며 쉬어가는 구간. (매수 적기)' },
+  { term: '돌파매매', category: '⚔️ 실전 매매 기법', description: '주가가 의미 있는 저항선(이전 고점 등)을 강한 거래량과 함께 뚫고 올라갈 때 매수하는 기법.' },
+  { term: '돌파', category: '⚔️ 실전 매매 기법', description: '주가가 의미 있는 저항선을 강한 거래량과 함께 뚫고 올라가는 현상.' },
+  { term: '종가배팅', category: '⚔️ 실전 매매 기법', description: '장이 끝나기 직전(종가 부근)에 주식을 사서 다음 날 아침 시초가에 파는 기법. (종베)' },
+  { term: '종베', category: '⚔️ 실전 매매 기법', description: '장이 끝나기 직전(종가 부근)에 주식을 사서 다음 날 아침 시초가에 파는 기법. (종가배팅)' },
+  { term: '뇌동매매', category: '⚔️ 실전 매매 기법', description: '자신의 원칙 없이 남들이 사니까 따라 사거나, 급등하는 주식을 충동적으로 추격 매수하는 행위.' },
+  { term: '손절매', category: '⚔️ 실전 매매 기법', description: '주가가 떨어져 손해를 보고 있지만, 더 큰 손실을 막기 위해 주식을 파는 행위. (손절)' },
+  { term: '손절', category: '⚔️ 실전 매매 기법', description: '주가가 떨어져 손해를 보고 있지만, 더 큰 손실을 막기 위해 주식을 파는 행위. (손절매)' },
+  { term: '물타기', category: '⚔️ 실전 매매 기법', description: '내가 산 주식의 가격이 떨어질 때, 평균 매수 단가를 낮추기 위해 추가로 매수하는 행위.' },
+  { term: '불타기', category: '⚔️ 실전 매매 기법', description: '내가 산 주식의 가격이 오를 때, 수익금을 극대화하기 위해 추가로 매수하는 행위.' }
+];
+
+const renderTextWithTooltips = (text: string) => {
+  if (!text) return null;
+  
+  const dict: Record<string, string> = {};
+  trainingData.forEach(item => {
+    dict[item.term] = item.description;
+  });
+
+  // Sort keys by length descending to match longer phrases first
+  const terms = Object.keys(dict).sort((a, b) => b.length - a.length);
+  const regex = new RegExp(`(${terms.join('|')})`, 'g');
+  
+  const parts = text.split(regex);
+  
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (dict[part]) {
+          return (
+            <span key={i} className="underline decoration-dotted decoration-slate-400 cursor-help relative group inline-block">
+              {part}
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-lg">
+                {dict[part]}
+                <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900"></span>
+              </span>
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+};
 
 interface StockData {
   id: string;
@@ -16,9 +93,17 @@ interface StockData {
   high52: number;
   dayHigh: number;
   dayLow: number;
+  afterHoursPrice?: number;
+  afterHoursRate?: number;
+  afterHoursVol?: number;
 }
 
 interface AiAnalysisResult {
+  companyOverview?: string;
+  todayMomentum?: string;
+  afterHoursPrice?: number;
+  afterHoursRate?: number;
+  afterHoursVol?: number;
   strategy: string;
   score: number;
   status: '빨간불' | '노란불' | '초록불';
@@ -28,7 +113,7 @@ interface AiAnalysisResult {
   analysis: string;
 }
 
-type TabType = 'volume' | 'recommended' | 'gainers' | 'under10k' | 'afterHours' | 'search' | 'newsPick' | 'etf';
+type TabType = 'volume' | 'recommended' | 'gainers' | 'under10k' | 'afterHours' | 'search' | 'newsPick' | 'etf' | 'training';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('volume');
@@ -59,6 +144,15 @@ export default function Dashboard() {
   const [etfPortfolio, setEtfPortfolio] = useState<any>(null);
   const [isEtfLoading, setIsEtfLoading] = useState(false);
 
+  const [trainingSearchTerm, setTrainingSearchTerm] = useState('');
+  const [trainingCategory, setTrainingCategory] = useState<string>('전체');
+
+  const filteredTrainingData = trainingData.filter(item => {
+    const matchesSearch = item.term.includes(trainingSearchTerm) || item.description.includes(trainingSearchTerm);
+    const matchesCategory = trainingCategory === '전체' || item.category === trainingCategory;
+    return matchesSearch && matchesCategory;
+  });
+
   const tabs = [
     { id: 'volume', label: '거래량 급증', icon: Activity },
     { id: 'recommended', label: '당일 추천주', icon: Target },
@@ -67,10 +161,11 @@ export default function Dashboard() {
     { id: 'afterHours', label: '시간외 급등(NXT)', icon: Clock },
     { id: 'newsPick', label: '📰 AI 뉴스 픽', icon: Sparkles },
     { id: 'etf', label: '💰 월배당 ETF 포트폴리오', icon: DollarSign },
+    { id: 'training', label: '🎓 실전 훈련소', icon: BookOpen },
   ] as const;
 
   useEffect(() => {
-    if (activeTab === 'etf') return;
+    if (activeTab === 'etf' || activeTab === 'training') return;
     fetchStocks(activeTab, activeTab === 'search' ? (searchStockId || keyword) : '', activeTab === 'search' ? keyword : '');
     setTimeLeft(60);
   }, [activeTab]);
@@ -79,7 +174,7 @@ export default function Dashboard() {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          if (activeTab !== 'etf') {
+          if (activeTab !== 'etf' && activeTab !== 'training') {
             fetchStocks(activeTab, activeTab === 'search' ? (searchStockId || keyword) : '', activeTab === 'search' ? keyword : '');
           }
           return 60;
@@ -251,15 +346,19 @@ export default function Dashboard() {
 거래량 증가율: ${stock.volIncr}%
 
 [필수 지시사항]
-1. 반드시 아래 4가지 전략 중 1가지만을 선택하여 "strategy" 필드에 기입:
+1. 분석 대상 종목이 무엇을 생산/서비스하는 회사인지, 핵심 기술이나 주요 고객사는 어디인지 파악하여 'companyOverview' 필드에 2줄로 요약해 주세요.
+2. 이 종목이 최근 시장에서 어떤 테마나 뉴스로 엮여서 수급(거래량)이 몰리고 있는지, '오늘의 상승 명분(모멘텀)'을 파악하여 'todayMomentum' 필드에 1줄 핵심 키워드 위주로 요약해 주세요.
+3. 반드시 아래 4가지 전략 중 1가지만을 선택하여 "strategy" 필드에 기입:
    - "수급 돌파 매매", "눌림목 매매", "종가 배팅", "관망"
-2. 'analysis' 필드 작성 가이드: 뻔한 소리는 배제하고, 반드시 아래 3단락 구조로 300자 이상 상세히 작성할 것. (마크다운 불릿 사용)
+4. 'analysis' 필드 작성 가이드: 뻔한 소리는 배제하고, 반드시 아래 3단락 구조로 300자 이상 상세히 작성할 것. (마크다운 불릿 사용)
    - 📊 [수급/차트 분석]: 현재 주가와 거래량 급증을 토대로 분봉상의 지지/저항선 돌파 여부, 세력 매집/이탈 흐름 논리적 유추.
    - 🎯 [추천 단타 기법]: 예) "오전장 전고점 돌파 시 시장가 진입", "단기 이평선 이탈 후 투매 나올 때 밑꼬리 매수" 등 구체적 기법 제시.
    - ⚠️ [실전 시나리오]: 돌파 실패 시 손절 타이밍, 분할 매수/매도 등 정확한 액션 플랜.
 
 응답은 반드시 아래의 JSON 구조와 정확히 일치해야 합니다:
 {
+  "companyOverview": "기업 개요 요약 텍스트",
+  "todayMomentum": "오늘의 급등 테마 및 상승 명분 텍스트",
   "strategy": "전략명",
   "score": 85,
   "status": "빨간불/노란불/초록불",
@@ -278,6 +377,8 @@ export default function Dashboard() {
           responseSchema: {
             type: Type.OBJECT,
             properties: {
+              companyOverview: { type: Type.STRING },
+              todayMomentum: { type: Type.STRING },
               strategy: { type: Type.STRING },
               score: { type: Type.INTEGER },
               status: { type: Type.STRING },
@@ -286,7 +387,7 @@ export default function Dashboard() {
               stopLoss: { type: Type.STRING },
               analysis: { type: Type.STRING }
             },
-            required: ["strategy", "score", "status", "entryPrice", "targetPrice", "stopLoss", "analysis"]
+            required: ["companyOverview", "todayMomentum", "strategy", "score", "status", "entryPrice", "targetPrice", "stopLoss", "analysis"]
           }
         }
       });
@@ -316,6 +417,10 @@ export default function Dashboard() {
           analysis: "AI 응답을 파싱하는 데 실패했습니다. 다시 시도해 주세요."
         };
       }
+      
+      jsonResponse.afterHoursPrice = stock.afterHoursPrice || 0;
+      jsonResponse.afterHoursRate = stock.afterHoursRate || 0;
+      jsonResponse.afterHoursVol = stock.afterHoursVol || 0;
       
       setAiAnalysis(jsonResponse);
     } catch (error: any) {
@@ -517,7 +622,7 @@ export default function Dashboard() {
 
         {/* Tabs and Autocomplete Search */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex overflow-x-auto pb-2 sm:pb-0 gap-2 hide-scrollbar w-full sm:w-auto">
+          <div className="flex flex-wrap justify-start gap-2 w-full">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -525,13 +630,13 @@ export default function Dashboard() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as TabType)}
-                  className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm transition-all ${
                     isActive
                       ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
                       : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-100' : 'text-slate-400'}`} />
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-100' : 'text-slate-400'}`} />
                   {tab.label}
                 </button>
               );
@@ -539,7 +644,67 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {activeTab === 'etf' ? (
+        {activeTab === 'training' ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div className="mb-8 text-center max-w-2xl mx-auto">
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">🎓 실전 훈련소</h2>
+              <p className="text-slate-500 text-sm">단타 핵심 용어와 매매 기법을 정독하고 실전에 대비하세요.</p>
+            </div>
+            
+            {/* Search and Filter */}
+            <div className="mb-8 max-w-3xl mx-auto space-y-4">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  value={trainingSearchTerm}
+                  onChange={(e) => setTrainingSearchTerm(e.target.value)}
+                  placeholder="궁금한 주식 용어나 기법을 검색해보세요 (예: 눌림목, 공매도)"
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {['전체', '📖 기초/시황 용어', '📈 차트/지표 보는 법', '⚔️ 실전 매매 기법'].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setTrainingCategory(cat)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                      trainingCategory === cat
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Grid */}
+            {filteredTrainingData.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredTrainingData.map((item) => (
+                  <div key={item.term} className="p-5 rounded-xl border border-slate-100 bg-slate-50 hover:bg-white hover:shadow-md transition-all duration-300 group flex flex-col h-full">
+                    <div className="text-xs font-bold text-slate-400 mb-2">{item.category}</div>
+                    <h3 className="text-lg font-bold text-indigo-700 mb-2 flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-indigo-500 group-hover:scale-110 transition-transform" />
+                      {item.term}
+                    </h3>
+                    <p className="text-sm text-slate-600 leading-relaxed flex-grow">
+                      {item.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-slate-500">
+                <Search className="w-12 h-12 mx-auto text-slate-300 mb-4" />
+                <p className="text-lg font-medium text-slate-600">검색 결과가 없습니다.</p>
+                <p className="text-sm mt-1">다른 검색어를 입력하거나 카테고리를 변경해보세요.</p>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'etf' ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <div className="mb-8 text-center max-w-2xl mx-auto">
               <h2 className="text-2xl font-bold text-slate-900 mb-2">월배당 ETF 포트폴리오 생성기</h2>
@@ -820,9 +985,34 @@ export default function Dashboard() {
                     
                     {/* Strategy Badge */}
                     <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold border border-indigo-200">
-                      <Target className="w-4 h-4" /> AI 추천 타점 전략: {aiAnalysis.strategy}
+                      <Target className="w-4 h-4" /> AI 추천 타점 전략: {renderTextWithTooltips(aiAnalysis.strategy)}
                     </div>
                   </div>
+
+                  {(aiAnalysis.companyOverview || aiAnalysis.todayMomentum) && (
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4 flex flex-col gap-3">
+                      {aiAnalysis.companyOverview && (
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-700 mb-1 flex items-center">
+                            🏢 기업 핵심 엑스레이
+                          </h4>
+                          <p className="text-sm text-slate-600 leading-relaxed">
+                            {renderTextWithTooltips(aiAnalysis.companyOverview)}
+                          </p>
+                        </div>
+                      )}
+                      {aiAnalysis.todayMomentum && (
+                        <div className="bg-blue-50 p-2 rounded border border-blue-100">
+                          <h4 className="text-xs font-bold text-blue-700 mb-1 flex items-center">
+                            🔥 오늘의 급등 모멘텀 (테마)
+                          </h4>
+                          <p className="text-sm text-blue-800 font-medium">
+                            {renderTextWithTooltips(aiAnalysis.todayMomentum)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Real-time Dual Charts */}
                   <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
@@ -837,6 +1027,21 @@ export default function Dashboard() {
                           alt="당일 분봉 흐름" 
                           className="w-full h-auto rounded-xl border border-slate-200 object-contain bg-white p-2" 
                         />
+                        <div className="mt-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200 flex items-center justify-between shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold px-2 py-1 bg-indigo-600 text-white rounded-md shadow-sm">🌙 야간/시간외 단일가</span>
+                            <span className="text-sm font-semibold text-slate-700">실시간 흐름</span>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-xl font-bold ${aiAnalysis.afterHoursRate! > 0 ? 'text-red-600' : aiAnalysis.afterHoursRate! < 0 ? 'text-blue-600' : 'text-slate-600'}`}>
+                              {aiAnalysis.afterHoursPrice! > 0 ? `${aiAnalysis.afterHoursPrice!.toLocaleString()}원` : '데이터 집계중'}
+                              {aiAnalysis.afterHoursRate !== 0 ? <span className="text-sm ml-1">({aiAnalysis.afterHoursRate! > 0 ? '+' : ''}{aiAnalysis.afterHoursRate}%)</span> : null}
+                            </span>
+                            <div className="text-xs text-slate-500 mt-1 font-mono">
+                              {aiAnalysis.afterHoursVol! > 0 ? `${aiAnalysis.afterHoursVol!.toLocaleString()}주 거래됨` : '현재 거래량 없음'}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                       <div>
                         <h4 className="text-xs font-bold text-slate-500 mb-2">📊 일봉 캔들 추세</h4>
@@ -909,7 +1114,7 @@ export default function Dashboard() {
                       AI 뼈때리는 분석
                     </h3>
                     <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-wrap">
-                      {aiAnalysis.analysis}
+                      {renderTextWithTooltips(aiAnalysis.analysis)}
                     </p>
                   </div>
                 </div>
